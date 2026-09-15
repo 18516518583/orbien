@@ -20,7 +20,6 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.net.InetAddress;
-import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -62,8 +61,6 @@ public final class OrbienClient implements AutoCloseable {
 
         group = new NioEventLoopGroup();
         CompletableFuture<String> loginFuture = new CompletableFuture<>();
-        Path sessionIdPath = resolveSessionIdPath();
-        String previousSessionId = resolvePreviousSessionId(sessionIdPath);
 
         try {
             Bootstrap b = new Bootstrap();
@@ -91,11 +88,9 @@ public final class OrbienClient implements AutoCloseable {
             ChannelFuture cf =
                     b.connect(connectHost(config.getServerHost()), config.getServerPort()).sync();
             controlChannel = cf.channel();
-            sendLogin(controlChannel, previousSessionId);
+            sendLogin(controlChannel);
 
             String id = loginFuture.get(30, TimeUnit.SECONDS);
-            config.setSessionId(id);
-            SessionIdStore.save(sessionIdPath, id);
             log.info("connected to {} sessionId={}", config.getServer(), id);
         } catch (Exception e) {
             close();
@@ -103,26 +98,7 @@ public final class OrbienClient implements AutoCloseable {
         }
     }
 
-    private Path resolveSessionIdPath() {
-        String configured = config.getSessionIdFile();
-        if (configured != null && !configured.isBlank()) {
-            return Path.of(configured);
-        }
-        return SessionIdStore.defaultPath();
-    }
-
-    private String resolvePreviousSessionId(Path sessionIdPath) {
-        if (config.getSessionId() != null && !config.getSessionId().isBlank()) {
-            return config.getSessionId().trim();
-        }
-        String loaded = SessionIdStore.load(sessionIdPath);
-        if (!loaded.isEmpty()) {
-            log.info("restored sessionId={} from {}", loaded, sessionIdPath);
-        }
-        return loaded;
-    }
-
-    private void sendLogin(Channel ch, String previousSessionId) {
+    private void sendLogin(Channel ch) {
         long ts = System.currentTimeMillis() / 1000;
         Login login = new Login();
         login.version = VERSION;
@@ -132,15 +108,14 @@ public final class OrbienClient implements AutoCloseable {
         login.user = config.getUser();
         login.timestamp = ts;
         login.authDigest = AuthKeys.computeAuthDigest(config.getToken(), ts);
-        login.sessionId = previousSessionId == null ? "" : previousSessionId;
+        login.sessionId = "";
         login.poolCount = Math.max(config.getPoolCount(), 1);
         ch.writeAndFlush(new WireMessage(MsgType.LOGIN, login));
         log.debug(
-                "login sent hostname={} user={} poolCount={} sessionId={}",
+                "login sent hostname={} user={} poolCount={} sessionId=<new>",
                 login.hostname,
                 login.user,
-                login.poolCount,
-                login.sessionId.isEmpty() ? "<new>" : login.sessionId);
+                login.poolCount);
     }
 
     private void openDataConn(String currentSessionId) {
