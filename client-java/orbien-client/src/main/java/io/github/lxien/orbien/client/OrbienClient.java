@@ -58,6 +58,9 @@ public final class OrbienClient implements AutoCloseable {
             started.set(false);
             throw new IllegalStateException("tcpMux is not supported; set tcpMux=false on client and server");
         }
+        if (config.getToken() == null || config.getToken().isEmpty()) {
+            log.warn("auth.token is empty; authentication is disabled");
+        }
 
         group = new NioEventLoopGroup();
         CompletableFuture<String> loginFuture = new CompletableFuture<>();

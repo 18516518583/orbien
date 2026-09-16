@@ -32,6 +32,9 @@ pub struct Service {
 
 impl Service {
     pub fn new(cfg: ClientConfig) -> Self {
+        if cfg.auth.token.is_empty() {
+            tracing::warn!("auth.token is empty; authentication is disabled");
+        }
         Self { cfg }
     }
 
