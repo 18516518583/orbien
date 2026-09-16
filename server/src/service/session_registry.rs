@@ -98,7 +98,6 @@ impl Service {
                 "replacing prior control session"
             );
             old.shutdown().await;
-            old.wait_finished().await;
         }
 
         match self.agents.try_online(AgentOnlineSpec {
@@ -149,12 +148,13 @@ impl Service {
         let metrics = Arc::clone(&self.metrics);
         let rid = session_id.clone();
         let result = Arc::clone(&control).run().await;
-        control.shutdown().await;
-        metrics.close_client();
 
         let tunnel_count = control.tunnel_count().await;
-        let _ = remove_if_current(&controls, &rid, &control).await;
-        agents.release(&rid, generation, tunnel_count);
+        control.shutdown().await;
+        if remove_if_current(&controls, &rid, &control).await {
+            agents.release(&rid, generation, tunnel_count);
+        }
+        metrics.close_client();
 
         result
     }

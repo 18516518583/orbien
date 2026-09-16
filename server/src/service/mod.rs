@@ -191,7 +191,6 @@ impl Service {
         let tunnel_count = control.tunnel_count().await;
         let generation = control.generation;
         control.kick("kicked from dashboard").await;
-        control.wait_finished().await;
 
         {
             let mut map = self.controls.lock().await;
