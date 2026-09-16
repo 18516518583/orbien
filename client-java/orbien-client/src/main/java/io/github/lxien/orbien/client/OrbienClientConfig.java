@@ -14,8 +14,6 @@ public final class OrbienClientConfig {
     private boolean tcpMux = false;
     private int poolCount = 1;
     private String user = "";
-    private String sessionId = "";
-    private String sessionIdFile = "";
     private int heartbeatIntervalSecs = 30;
     private final List<TunnelConfig> tunnels = new ArrayList<>();
 
@@ -68,22 +66,6 @@ public final class OrbienClientConfig {
 
     public void setUser(String user) {
         this.user = user == null ? "" : user;
-    }
-
-    public String getSessionId() {
-        return sessionId;
-    }
-
-    public void setSessionId(String sessionId) {
-        this.sessionId = sessionId == null ? "" : sessionId;
-    }
-
-    public String getSessionIdFile() {
-        return sessionIdFile;
-    }
-
-    public void setSessionIdFile(String sessionIdFile) {
-        this.sessionIdFile = sessionIdFile == null ? "" : sessionIdFile;
     }
 
     public int getHeartbeatIntervalSecs() {

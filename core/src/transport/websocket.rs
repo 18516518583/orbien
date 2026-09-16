@@ -150,7 +150,7 @@ where
         self: Pin<&mut Self>,
         cx: &mut TaskContext<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        match Pin::new(&mut self.get_mut().inner).poll_flush(cx) {
+        match Pin::new(&mut self.get_mut().inner).poll_close(cx) {
             Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
             Poll::Ready(Err(e)) => Poll::Ready(Err(std::io::Error::other(e))),
             Poll::Pending => Poll::Pending,

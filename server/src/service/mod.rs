@@ -9,6 +9,7 @@ use crate::tunnel::{
 };
 use agent_registry::AgentRegistry;
 use anyhow::{anyhow, Result};
+use orbien_core::auth::ReplayCache;
 use orbien_core::config::ServerConfig;
 use orbien_core::transport;
 use session_table::SessionMap;
@@ -24,6 +25,7 @@ pub struct Service {
     cfg: ServerConfig,
     pub(crate) controls: Arc<Mutex<SessionMap>>,
     pub(crate) agents: Arc<AgentRegistry>,
+    pub(crate) auth_replay: Arc<ReplayCache>,
     http_gw: Option<Arc<HttpGw>>,
     https_gw: Option<Arc<HttpsGw>>,
     tls_config: Arc<rustls::ServerConfig>,
@@ -36,6 +38,9 @@ pub struct Service {
 
 impl Service {
     pub fn new(cfg: ServerConfig) -> Result<Self> {
+        if cfg.auth.token.is_empty() {
+            tracing::warn!("auth.token is empty; authentication is disabled");
+        }
         let http_gw = if cfg.http_gw_enabled() {
             Some(Arc::new(HttpGw::new(cfg.http_gw_port)))
         } else {
@@ -56,6 +61,7 @@ impl Service {
             cfg,
             controls: Arc::new(Mutex::new(HashMap::new())),
             agents: Arc::new(AgentRegistry::new()),
+            auth_replay: Arc::new(ReplayCache::new()),
             http_gw,
             https_gw,
             tls_config,
@@ -191,7 +197,6 @@ impl Service {
         let tunnel_count = control.tunnel_count().await;
         let generation = control.generation;
         control.kick("kicked from dashboard").await;
-        control.wait_finished().await;
 
         {
             let mut map = self.controls.lock().await;

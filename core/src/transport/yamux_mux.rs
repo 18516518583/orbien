@@ -1,10 +1,12 @@
 use super::stream::{boxed_stream, DynStream};
 use anyhow::{anyhow, Result};
 use std::future::poll_fn;
+use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
 
 const MAX_NUM_STREAMS: usize = 4096;
+const CLOSE_TIMEOUT: Duration = Duration::from_secs(1);
 
 fn yamux_config() -> yamux::Config {
     let mut cfg = yamux::Config::default();
@@ -55,7 +57,12 @@ async fn drive_client(io: DynStream, mut open_rx: mpsc::Receiver<OpenReply>) {
                         let _ = reply.send(res);
                     }
                     None => {
-                        let _ = poll_fn(|cx| conn.poll_close(cx)).await;
+                        if tokio::time::timeout(CLOSE_TIMEOUT, poll_fn(|cx| conn.poll_close(cx)))
+                            .await
+                            .is_err()
+                        {
+                            tracing::debug!("yamux client close timed out, dropping connection");
+                        }
                         break;
                     }
                 }
